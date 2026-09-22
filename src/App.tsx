@@ -244,24 +244,24 @@ function Navbar({ onNavigate, onSearch, onCart, onMenu, onAuth, cartCount, wishC
 
 // ============ AUTH MODAL ============
 function AuthModal({ mode, setMode, onClose }: { mode: "signin" | "signup"; setMode: (m: "signin" | "signup") => void; onClose: () => void }) {
-  const { signIn, signUp, notify } = useApp();
+  const { signIn, signUp, signInWithGoogle, notify } = useApp();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (mode === "signup") {
       if (!name || !email || !password) { setError("All fields required"); return; }
       if (password.length < 6) { setError("Password must be 6+ characters"); return; }
-      const res = signUp(name, email, password);
+      const res = await signUp(name, email, password);
       if (res.success) { notify(res.message); onClose(); }
       else setError(res.message);
     } else {
       if (!email || !password) { setError("All fields required"); return; }
-      const res = signIn(email, password);
+      const res = await signIn(email, password);
       if (res.success) { notify(res.message); onClose(); }
       else setError(res.message);
     }
@@ -279,6 +279,8 @@ function AuthModal({ mode, setMode, onClose }: { mode: "signin" | "signup"; setM
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <button type="button" onClick={async()=>{const r=await signInWithGoogle(); if(!r.success)setError(r.message)}} className="w-full border border-white/15 py-3 rounded-sm text-[10px] tracking-[.16em] hover:bg-white hover:text-black transition">CONTINUE WITH GOOGLE</button>
+          <div className="flex items-center gap-3"><div className="h-px bg-white/10 flex-1"/><span className="text-[9px] text-white/25">OR EMAIL</span><div className="h-px bg-white/10 flex-1"/></div>
           {mode === "signup" && (
             <div>
               <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">FULL NAME</label>
@@ -1205,9 +1207,9 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
 
   if (!currentUser) { onAuth(); return null; }
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!form.address || !form.city || !form.pin) { notify("Fill all shipping details", "error"); return; }
-    const id = placeOrder(form);
+    const id = await placeOrder(form);
     setOrderId(id);
     setStep(3);
   };

@@ -1,14 +1,22 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode
+} from 'react';
+import { supabase } from '../lib/supabase';
 
-// ============ TYPES ============
 export interface User {
   id: string;
   name: string;
   email: string;
-  password: string;
+  password?: string;
   avatar: string;
   bio: string;
   joinedAt: number;
+  role?: 'customer' | 'seller' | 'admin';
 }
 
 export interface UserProduct {
@@ -20,6 +28,10 @@ export interface UserProduct {
   images: string[];
   description: string;
   category: string;
+  mrp?: number;
+  stock?: number;
+  sellerId?: string;
+  collectionId?: string;
 }
 
 export interface UserCollection {
@@ -54,242 +66,1063 @@ export interface Order {
   total: number;
   status: string;
   date: number;
+  address?: any;
 }
 
 interface AppContextType {
-  // Auth
   currentUser: User | null;
   users: User[];
-  signUp: (name: string, email: string, password: string) => { success: boolean; message: string };
-  signIn: (email: string, password: string) => { success: boolean; message: string };
-  signOut: () => void;
-  updateProfile: (data: Partial<User>) => void;
 
-  // Collections
+  signUp: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; message: string }>;
+
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; message: string }>;
+
+  signInWithGoogle: () => Promise<{
+    success: boolean;
+    message: string;
+  }>;
+
+  signOut: () => Promise<void>;
+
+  updateProfile: (data: Partial<User>) => Promise<void>;
+
   collections: UserCollection[];
-  addCollection: (col: Omit<UserCollection, "id" | "createdAt" | "likes" | "likedBy">) => void;
-  deleteCollection: (id: string) => void;
-  updateCollection: (id: string, data: Partial<UserCollection>) => void;
-  likeCollection: (id: string) => void;
+
+  addCollection: (
+    col: Omit<UserCollection, 'id' | 'createdAt' | 'likes' | 'likedBy'>
+  ) => Promise<void>;
+
+  deleteCollection: (id: string) => Promise<void>;
+
+  updateCollection: (
+    id: string,
+    data: Partial<UserCollection>
+  ) => Promise<void>;
+
+  likeCollection: (id: string) => Promise<void>;
+
   getUserCollections: (userId: string) => UserCollection[];
 
-  // Cart
   cart: CartItem[];
-  addToCart: (item: Omit<CartItem, "qty">) => void;
-  removeFromCart: (productId: string, collectionId: string, size: string) => void;
-  updateCartQty: (productId: string, collectionId: string, size: string, qty: number) => void;
+
+  addToCart: (item: Omit<CartItem, 'qty'>) => void;
+
+  removeFromCart: (
+    productId: string,
+    collectionId: string,
+    size: string
+  ) => void;
+
+  updateCartQty: (
+    productId: string,
+    collectionId: string,
+    size: string,
+    qty: number
+  ) => void;
+
   clearCart: () => void;
+
   cartTotal: number;
   cartCount: number;
 
-  // Wishlist
   wishlist: string[];
-  toggleWishlist: (productId: string) => void;
+
+  toggleWishlist: (productId: string) => Promise<void>;
+
   isInWishlist: (productId: string) => boolean;
 
-  // Orders
   orders: Order[];
-  placeOrder: (address: any) => string;
 
-  // Toast
+  placeOrder: (address: any) => Promise<string>;
+
   toast: string;
-  toastType: "success" | "info" | "error";
-  notify: (msg: string, type?: "success" | "info" | "error") => void;
+  toastType: 'success' | 'info' | 'error';
+
+  notify: (
+    msg: string,
+    type?: 'success' | 'info' | 'error'
+  ) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Helper
-const genId = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-const getAvatar = (name: string) => `https://api.dicebear.com/7.0/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=111111&textColor=ffffff`;
+const avatar = (name: string) =>
+  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(
+    name || 'User'
+  )}`;
 
-// ============ PROVIDER ============
-export function AppProvider({ children }: { children: ReactNode }) {
-  // Load from localStorage
-  const [users, setUsers] = useState<User[]>(() => {
-    try { return JSON.parse(localStorage.getItem("rd_users") || "[]"); } catch { return []; }
-  });
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try { const u = localStorage.getItem("rd_current_user"); return u ? JSON.parse(u) : null; } catch { return null; }
-  });
-  const [collections, setCollections] = useState<UserCollection[]>(() => {
-    try { return JSON.parse(localStorage.getItem("rd_collections") || "[]"); } catch { return []; }
-  });
+export function AppProvider({
+  children
+}: {
+  children: ReactNode;
+}) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const [users, setUsers] = useState<User[]>([]);
+
+  const [collections, setCollections] = useState<UserCollection[]>(
+    []
+  );
+
   const [cart, setCart] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem("rd_cart") || "[]"); } catch { return []; }
-  });
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("rd_wishlist") || "[]"); } catch { return []; }
-  });
-  const [orders, setOrders] = useState<Order[]>(() => {
-    try { return JSON.parse(localStorage.getItem("rd_orders") || "[]"); } catch { return []; }
-  });
-  const [toast, setToast] = useState("");
-  const [toastType, setToastType] = useState<"success" | "info" | "error">("success");
-
-  // Persist to localStorage
-  useEffect(() => { localStorage.setItem("rd_users", JSON.stringify(users)); }, [users]);
-  useEffect(() => { localStorage.setItem("rd_current_user", JSON.stringify(currentUser)); }, [currentUser]);
-  useEffect(() => { localStorage.setItem("rd_collections", JSON.stringify(collections)); }, [collections]);
-  useEffect(() => { localStorage.setItem("rd_cart", JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem("rd_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
-  useEffect(() => { localStorage.setItem("rd_orders", JSON.stringify(orders)); }, [orders]);
-
-  const notify = useCallback((msg: string, type: "success" | "info" | "error" = "success") => {
-    setToast(msg);
-    setToastType(type);
-    setTimeout(() => setToast(""), 2500);
-  }, []);
-
-  // Auth
-  const signUp = useCallback((name: string, email: string, password: string) => {
-    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-      return { success: false, message: "Email already registered" };
+    try {
+      const saved = localStorage.getItem('rd_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-    const newUser: User = {
-      id: genId(),
-      name,
-      email,
-      password,
-      avatar: getAvatar(name),
-      bio: "",
-      joinedAt: Date.now(),
-    };
-    setUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
-    return { success: true, message: "Welcome to RD Universe!" };
-  }, [users]);
+  });
 
-  const signIn = useCallback((email: string, password: string) => {
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (!user) return { success: false, message: "Invalid email or password" };
-    setCurrentUser(user);
-    return { success: true, message: `Welcome back, ${user.name}!` };
-  }, [users]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
 
-  const signOut = useCallback(() => {
-    setCurrentUser(null);
-    notify("Signed out successfully", "info");
-  }, [notify]);
+  const [orders, setOrders] = useState<Order[]>([]);
 
-  const updateProfile = useCallback((data: Partial<User>) => {
-    if (!currentUser) return;
-    const updated = { ...currentUser, ...data };
-    setCurrentUser(updated);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updated : u));
-    notify("Profile updated");
-  }, [currentUser, notify]);
+  const [toast, setToast] = useState('');
 
-  // Collections
-  const addCollection = useCallback((col: Omit<UserCollection, "id" | "createdAt" | "likes" | "likedBy">) => {
-    const newCol: UserCollection = { ...col, id: genId(), createdAt: Date.now(), likes: 0, likedBy: [] };
-    setCollections(prev => [newCol, ...prev]);
-    notify("Collection published! 🎉");
-  }, [notify]);
+  const [toastType, setToastType] = useState<
+    'success' | 'info' | 'error'
+  >('success');
 
-  const deleteCollection = useCallback((id: string) => {
-    setCollections(prev => prev.filter(c => c.id !== id));
-    notify("Collection deleted", "info");
-  }, [notify]);
+  /* ---------------- NOTIFICATION ---------------- */
 
-  const updateCollection = useCallback((id: string, data: Partial<UserCollection>) => {
-    setCollections(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-  }, []);
+  const notify = useCallback(
+    (
+      msg: string,
+      type: 'success' | 'info' | 'error' = 'success'
+    ) => {
+      setToast(msg);
+      setToastType(type);
 
-  const likeCollection = useCallback((id: string) => {
-    if (!currentUser) { notify("Please sign in to like", "info"); return; }
-    setCollections(prev => prev.map(c => {
-      if (c.id !== id) return c;
-      const liked = c.likedBy.includes(currentUser.id);
-      return {
-        ...c,
-        likedBy: liked ? c.likedBy.filter(uid => uid !== currentUser.id) : [...c.likedBy, currentUser.id],
-        likes: liked ? c.likes - 1 : c.likes + 1,
-      };
-    }));
-  }, [currentUser, notify]);
+      window.setTimeout(() => {
+        setToast('');
+      }, 2800);
+    },
+    []
+  );
 
-  const getUserCollections = useCallback((userId: string) => {
-    return collections.filter(c => c.userId === userId);
-  }, [collections]);
+  /* ---------------- PROFILE ---------------- */
 
-  // Cart
-  const addToCart = useCallback((item: Omit<CartItem, "qty">) => {
-    setCart(prev => {
-      const found = prev.find(x =>
-        x.productId === item.productId &&
-        x.collectionId === item.collectionId &&
-        x.size === item.size &&
-        x.color === item.color
-      );
-      if (found) {
-        return prev.map(x => x === found ? { ...x, qty: x.qty + 1 } : x);
+  const profile = useCallback(
+    async (id: string): Promise<User | null> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error || !data) {
+        return null;
       }
-      return [...prev, { ...item, qty: 1 }];
-    });
-    notify("Added to bag ✓");
+
+      return {
+        id: data.id,
+        name: data.name || 'User',
+        email: data.email || '',
+        avatar:
+          data.avatar ||
+          data.avatar_url ||
+          avatar(data.name || 'User'),
+        bio: data.bio || '',
+        joinedAt: data.created_at
+          ? new Date(data.created_at).getTime()
+          : Date.now(),
+        role: data.role || 'customer'
+      };
+    },
+    []
+  );
+
+  /* ---------------- LOAD COLLECTIONS ---------------- */
+
+  const loadCollections = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('collections')
+      .select(
+        '*, profiles:seller_id(id,name,avatar), products(*)'
+      )
+      .order('created_at', {
+        ascending: false
+      });
+
+    if (error) {
+      notify(error.message, 'error');
+      return;
+    }
+
+    const formatted: UserCollection[] = (data || []).map(
+      (c: any) => ({
+        id: c.id,
+        userId: c.seller_id,
+        userName: c.profiles?.name || 'Seller',
+        userAvatar:
+          c.profiles?.avatar ||
+          avatar(c.profiles?.name || 'Seller'),
+        name: c.name || '',
+        description: c.description || '',
+        coverImage: c.cover_image || '',
+        createdAt: c.created_at
+          ? new Date(c.created_at).getTime()
+          : Date.now(),
+        likes: Number(c.likes || 0),
+        likedBy: c.liked_by || [],
+        products: (c.products || []).map(
+          (p: any): UserProduct => ({
+            id: p.id,
+            name: p.name || '',
+            price: Number(p.price || 0),
+            mrp:
+              p.mrp !== null && p.mrp !== undefined
+                ? Number(p.mrp)
+                : undefined,
+            sizes: p.sizes || [],
+            colors: p.colors || [],
+            images: p.images || [],
+            description: p.description || '',
+            category: p.category || '',
+            stock:
+              p.stock !== null && p.stock !== undefined
+                ? Number(p.stock)
+                : undefined,
+            sellerId: p.seller_id,
+            collectionId: p.collection_id
+          })
+        )
+      })
+    );
+
+    setCollections(formatted);
   }, [notify]);
 
-  const removeFromCart = useCallback((productId: string, collectionId: string, size: string) => {
-    setCart(prev => prev.filter(x => !(x.productId === productId && x.collectionId === collectionId && x.size === size)));
+  /* ---------------- AUTH SESSION ---------------- */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initialize = async () => {
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const p = await profile(session.user.id);
+
+        if (mounted) {
+          setCurrentUser(p);
+        }
+      }
+
+      await loadCollections();
+    };
+
+    initialize();
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          const p = await profile(session.user.id);
+
+          if (mounted) {
+            setCurrentUser(p);
+          }
+        } else if (mounted) {
+          setCurrentUser(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [profile, loadCollections]);
+
+  /* ---------------- WISHLIST + ORDERS ---------------- */
+
+  useEffect(() => {
+    if (!currentUser) {
+      setWishlist([]);
+      setOrders([]);
+      return;
+    }
+
+    let mounted = true;
+
+    const loadUserData = async () => {
+      const { data: wishlistData } = await supabase
+        .from('wishlists')
+        .select('product_id')
+        .eq('user_id', currentUser.id);
+
+      if (mounted) {
+        setWishlist(
+          (wishlistData || []).map(
+            (item: any) => item.product_id
+          )
+        );
+      }
+
+      const { data: orderData } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('user_id', currentUser.id)
+        .order('created_at', {
+          ascending: false
+        });
+
+      if (!mounted) {
+        return;
+      }
+
+      const formattedOrders: Order[] = (orderData || []).map(
+        (order: any) => ({
+          id: order.id,
+          userId: order.user_id,
+          total: Number(order.total || 0),
+          status: order.status || 'pending',
+          date: order.created_at
+            ? new Date(order.created_at).getTime()
+            : Date.now(),
+          address: order.address,
+          items: (order.order_items || []).map(
+            (item: any): CartItem => ({
+              productId: item.product_id,
+              collectionId: item.collection_id || '',
+              sellerId: item.seller_id || '',
+              product: {
+                id: item.product_id,
+                name: item.product_name || '',
+                price: Number(item.price || 0),
+                images: item.image
+                  ? [item.image]
+                  : [],
+                sizes: [],
+                colors: [],
+                description: '',
+                category: ''
+              },
+              size: item.size || '',
+              color: item.color || '',
+              qty: Number(item.quantity || 1),
+              isUserCollection: true
+            })
+          )
+        })
+      );
+
+      setOrders(formattedOrders);
+    };
+
+    loadUserData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser]);
+
+  /* ---------------- SIGN UP ---------------- */
+
+  const signUp = useCallback(
+    async (
+      name: string,
+      email: string,
+      password: string
+    ) => {
+      const cleanEmail = email.trim().toLowerCase();
+
+      const { error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            name,
+            avatar_url: avatar(name)
+          },
+          emailRedirectTo:
+            import.meta.env.VITE_SITE_URL ||
+            window.location.origin
+        }
+      });
+
+      if (error) {
+        return {
+          success: false,
+          message: error.message
+        };
+      }
+
+      return {
+        success: true,
+        message:
+          'Account created. Check your email to verify your account.'
+      };
+    },
+    []
+  );
+
+  /* ---------------- SIGN IN ---------------- */
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password
+        });
+
+      if (error) {
+        return {
+          success: false,
+          message: error.message
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Login successful.'
+      };
+    },
+    []
+  );
+
+  /* ---------------- GOOGLE LOGIN ---------------- */
+
+  const signInWithGoogle = useCallback(async () => {
+    const { error } =
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo:
+            import.meta.env.VITE_SITE_URL ||
+            window.location.origin
+        }
+      });
+
+    if (error) {
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Redirecting to Google...'
+    };
   }, []);
 
-  const updateCartQty = useCallback((productId: string, collectionId: string, size: string, qty: number) => {
-    if (qty <= 0) { removeFromCart(productId, collectionId, size); return; }
-    setCart(prev => prev.map(x =>
-      x.productId === productId && x.collectionId === collectionId && x.size === size
-        ? { ...x, qty } : x
-    ));
-  }, [removeFromCart]);
+  /* ---------------- SIGN OUT ---------------- */
 
-  const clearCart = useCallback(() => setCart([]), []);
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
 
-  const cartTotal = cart.reduce((a, x) => a + x.product.price * x.qty, 0);
-  const cartCount = cart.reduce((a, x) => a + x.qty, 0);
+    if (error) {
+      notify(error.message, 'error');
+      return;
+    }
 
-  // Wishlist
-  const toggleWishlist = useCallback((productId: string) => {
-    setWishlist(prev => {
-      if (prev.includes(productId)) { notify("Removed from wishlist", "info"); return prev.filter(id => id !== productId); }
-      notify("Saved to wishlist ❤️");
-      return [...prev, productId];
-    });
+    setCurrentUser(null);
+    setWishlist([]);
+    setOrders([]);
+
+    notify('Logged out successfully.', 'success');
   }, [notify]);
 
-  const isInWishlist = useCallback((productId: string) => wishlist.includes(productId), [wishlist]);
+  /* ---------------- UPDATE PROFILE ---------------- */
 
-  // Orders
-  const placeOrder = useCallback((address: any) => {
-    if (!currentUser) return "";
-    const order: Order = {
-      id: "RD" + Date.now().toString(36).toUpperCase(),
-      userId: currentUser.id,
-      items: [...cart],
-      total: cartTotal + (cartTotal < 2999 ? 99 : 0),
-      status: "Confirmed",
-      date: Date.now(),
-    };
-    setOrders(prev => [order, ...prev]);
+  const updateProfile = useCallback(
+    async (data: Partial<User>) => {
+      if (!currentUser) {
+        notify('Please login first.', 'error');
+        return;
+      }
+
+      const updateData: any = {};
+
+      if (data.name !== undefined) {
+        updateData.name = data.name;
+      }
+
+      if (data.avatar !== undefined) {
+        updateData.avatar = data.avatar;
+      }
+
+      if (data.bio !== undefined) {
+        updateData.bio = data.bio;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', currentUser.id);
+
+      if (error) {
+        notify(error.message, 'error');
+        return;
+      }
+
+      setCurrentUser({
+        ...currentUser,
+        ...data
+      });
+
+      notify('Profile updated.', 'success');
+    },
+    [currentUser, notify]
+  );
+
+  /* ---------------- ADD COLLECTION ---------------- */
+
+  const addCollection = useCallback(
+    async (
+      col: Omit<
+        UserCollection,
+        'id' | 'createdAt' | 'likes' | 'likedBy'
+      >
+    ) => {
+      if (!currentUser) {
+        notify('Please login first.', 'error');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('collections')
+        .insert({
+          seller_id: currentUser.id,
+          name: col.name,
+          description: col.description,
+          cover_image: col.coverImage,
+          likes: 0
+        })
+        .select()
+        .single();
+
+      if (error) {
+        notify(error.message, 'error');
+        return;
+      }
+
+      const newCollection: UserCollection = {
+        ...col,
+        id: data.id,
+        createdAt: Date.now(),
+        likes: 0,
+        likedBy: []
+      };
+
+      setCollections(prev => [
+        newCollection,
+        ...prev
+      ]);
+
+      notify('Collection created successfully.', 'success');
+    },
+    [currentUser, notify]
+  );
+
+  /* ---------------- DELETE COLLECTION ---------------- */
+
+  const deleteCollection = useCallback(
+    async (id: string) => {
+      const { error } = await supabase
+        .from('collections')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        notify(error.message, 'error');
+        return;
+      }
+
+      setCollections(prev =>
+        prev.filter(item => item.id !== id)
+      );
+
+      notify('Collection deleted.', 'success');
+    },
+    [notify]
+  );
+
+  /* ---------------- UPDATE COLLECTION ---------------- */
+
+  const updateCollection = useCallback(
+    async (
+      id: string,
+      data: Partial<UserCollection>
+    ) => {
+      const updateData: any = {};
+
+      if (data.name !== undefined) {
+        updateData.name = data.name;
+      }
+
+      if (data.description !== undefined) {
+        updateData.description =
+          data.description;
+      }
+
+      if (data.coverImage !== undefined) {
+        updateData.cover_image =
+          data.coverImage;
+      }
+
+      const { error } = await supabase
+        .from('collections')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) {
+        notify(error.message, 'error');
+        return;
+      }
+
+      setCollections(prev =>
+        prev.map(collection =>
+          collection.id === id
+            ? {
+                ...collection,
+                ...data
+              }
+            : collection
+        )
+      );
+
+      notify('Collection updated.', 'success');
+    },
+    [notify]
+  );
+
+  /* ---------------- LIKE COLLECTION ---------------- */
+
+  const likeCollection = useCallback(
+    async (id: string) => {
+      if (!currentUser) {
+        notify('Please login to like.', 'error');
+        return;
+      }
+
+      const collection = collections.find(
+        item => item.id === id
+      );
+
+      if (!collection) {
+        return;
+      }
+
+      const alreadyLiked =
+        collection.likedBy.includes(
+          currentUser.id
+        );
+
+      const newLikedBy = alreadyLiked
+        ? collection.likedBy.filter(
+            userId =>
+              userId !== currentUser.id
+          )
+        : [
+            ...collection.likedBy,
+            currentUser.id
+          ];
+
+      const newLikes = Math.max(
+        0,
+        newLikedBy.length
+      );
+
+      const { error } = await supabase
+        .from('collections')
+        .update({
+          likes: newLikes,
+          liked_by: newLikedBy
+        })
+        .eq('id', id);
+
+      if (error) {
+        notify(error.message, 'error');
+        return;
+      }
+
+      setCollections(prev =>
+        prev.map(item =>
+          item.id === id
+            ? {
+                ...item,
+                likes: newLikes,
+                likedBy: newLikedBy
+              }
+            : item
+        )
+      );
+    },
+    [collections, currentUser, notify]
+  );
+
+  /* ---------------- USER COLLECTIONS ---------------- */
+
+  const getUserCollections = useCallback(
+    (userId: string) => {
+      return collections.filter(
+        collection =>
+          collection.userId === userId
+      );
+    },
+    [collections]
+  );
+
+  /* ---------------- CART ---------------- */
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'rd_cart',
+        JSON.stringify(cart)
+      );
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [cart]);
+
+  const addToCart = useCallback(
+    (item: Omit<CartItem, 'qty'>) => {
+      setCart(prev => {
+        const existingIndex = prev.findIndex(
+          cartItem =>
+            cartItem.productId ===
+              item.productId &&
+            cartItem.collectionId ===
+              item.collectionId &&
+            cartItem.size === item.size &&
+            cartItem.color === item.color
+        );
+
+        if (existingIndex !== -1) {
+          return prev.map(
+            (cartItem, index) =>
+              index === existingIndex
+                ? {
+                    ...cartItem,
+                    qty: cartItem.qty + 1
+                  }
+                : cartItem
+          );
+        }
+
+        return [
+          ...prev,
+          {
+            ...item,
+            qty: 1
+          }
+        ];
+      });
+
+      notify('Added to cart.', 'success');
+    },
+    [notify]
+  );
+
+  /* ---------------- REMOVE CART ITEM ---------------- */
+
+  const removeFromCart = useCallback(
+    (
+      productId: string,
+      collectionId: string,
+      size: string
+    ) => {
+      setCart(prev =>
+        prev.filter(
+          item =>
+            !(
+              item.productId === productId &&
+              item.collectionId ===
+                collectionId &&
+              item.size === size
+            )
+        )
+      );
+    },
+    []
+  );
+
+  /* ---------------- UPDATE CART QTY ---------------- */
+
+  const updateCartQty = useCallback(
+    (
+      productId: string,
+      collectionId: string,
+      size: string,
+      qty: number
+    ) => {
+      if (qty <= 0) {
+        removeFromCart(
+          productId,
+          collectionId,
+          size
+        );
+        return;
+      }
+
+      setCart(prev =>
+        prev.map(item =>
+          item.productId === productId &&
+          item.collectionId ===
+            collectionId &&
+          item.size === size
+            ? {
+                ...item,
+                qty
+              }
+            : item
+        )
+      );
+    },
+    [removeFromCart]
+  );
+
+  /* ---------------- CLEAR CART ---------------- */
+
+  const clearCart = useCallback(() => {
     setCart([]);
-    return order.id;
-  }, [currentUser, cart, cartTotal]);
+    localStorage.removeItem('rd_cart');
+  }, []);
+
+  /* ---------------- CART TOTAL ---------------- */
+
+  const cartTotal = cart.reduce(
+    (total, item) =>
+      total +
+      Number(item.product?.price || 0) *
+        item.qty,
+    0
+  );
+
+  const cartCount = cart.reduce(
+    (total, item) =>
+      total + Number(item.qty || 0),
+    0
+  );
+
+  /* ---------------- WISHLIST ---------------- */
+
+  const toggleWishlist = useCallback(
+    async (productId: string) => {
+      if (!currentUser) {
+        notify(
+          'Please login to use wishlist.',
+          'error'
+        );
+        return;
+      }
+
+      const exists =
+        wishlist.includes(productId);
+
+      if (exists) {
+        const { error } = await supabase
+          .from('wishlists')
+          .delete()
+          .eq('user_id', currentUser.id)
+          .eq('product_id', productId);
+
+        if (error) {
+          notify(error.message, 'error');
+          return;
+        }
+
+        setWishlist(prev =>
+          prev.filter(id => id !== productId)
+        );
+      } else {
+        const { error } = await supabase
+          .from('wishlists')
+          .insert({
+            user_id: currentUser.id,
+            product_id: productId
+          });
+
+        if (error) {
+          notify(error.message, 'error');
+          return;
+        }
+
+        setWishlist(prev => [
+          ...prev,
+          productId
+        ]);
+      }
+    },
+    [currentUser, wishlist, notify]
+  );
+
+  const isInWishlist = useCallback(
+    (productId: string) =>
+      wishlist.includes(productId),
+    [wishlist]
+  );
+
+  /* ---------------- PLACE ORDER ---------------- */
+
+  const placeOrder = useCallback(
+    async (address: any): Promise<string> => {
+      if (!currentUser) {
+        throw new Error(
+          'Please login before placing an order.'
+        );
+      }
+
+      if (cart.length === 0) {
+        throw new Error(
+          'Your cart is empty.'
+        );
+      }
+
+      const { data: order, error } =
+        await supabase
+          .from('orders')
+          .insert({
+            user_id: currentUser.id,
+            total: cartTotal,
+            status: 'pending',
+            address
+          })
+          .select()
+          .single();
+
+      if (error || !order) {
+        throw new Error(
+          error?.message ||
+            'Unable to create order.'
+        );
+      }
+
+      const orderItems = cart.map(item => ({
+        order_id: order.id,
+        product_id: item.productId,
+        seller_id:
+          item.sellerId ||
+          item.product?.sellerId ||
+          null,
+        collection_id:
+          item.collectionId || null,
+        product_name:
+          item.product?.name || '',
+        price:
+          Number(item.product?.price || 0),
+        image:
+          item.product?.images?.[0] ||
+          null,
+        size: item.size || '',
+        color: item.color || '',
+        quantity: item.qty
+      }));
+
+      const { error: itemError } =
+        await supabase
+          .from('order_items')
+          .insert(orderItems);
+
+      if (itemError) {
+        throw new Error(
+          itemError.message
+        );
+      }
+
+      setOrders(prev => [
+        {
+          id: order.id,
+          userId: currentUser.id,
+          items: cart,
+          total: cartTotal,
+          status: 'pending',
+          date: Date.now(),
+          address
+        },
+        ...prev
+      ]);
+
+      clearCart();
+
+      notify(
+        'Order placed successfully.',
+        'success'
+      );
+
+      return order.id;
+    },
+    [
+      currentUser,
+      cart,
+      cartTotal,
+      clearCart,
+      notify
+    ]
+  );
+
+  /* ---------------- CONTEXT VALUE ---------------- */
+
+  const value: AppContextType = {
+    currentUser,
+    users,
+    signUp,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    updateProfile,
+
+    collections,
+    addCollection,
+    deleteCollection,
+    updateCollection,
+    likeCollection,
+    getUserCollections,
+
+    cart,
+    addToCart,
+    removeFromCart,
+    updateCartQty,
+    clearCart,
+    cartTotal,
+    cartCount,
+
+    wishlist,
+    toggleWishlist,
+    isInWishlist,
+
+    orders,
+    placeOrder,
+
+    toast,
+    toastType,
+    notify
+  };
 
   return (
-    <AppContext.Provider value={{
-      currentUser, users, signUp, signIn, signOut, updateProfile,
-      collections, addCollection, deleteCollection, updateCollection, likeCollection, getUserCollections,
-      cart, addToCart, removeFromCart, updateCartQty, clearCart, cartTotal, cartCount,
-      wishlist, toggleWishlist, isInWishlist,
-      orders, placeOrder,
-      toast, toastType, notify,
-    }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );
 }
 
+/* ---------------- USE APP CONTEXT ---------------- */
+
 export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
-  return ctx;
+  const context = useContext(AppContext);
+
+  if (!context) {
+    throw new Error(
+      'useApp must be used inside AppProvider'
+    );
+  }
+
+  return context;
 }
+
+export default AppContext;
