@@ -1384,9 +1384,7 @@ function MobileMenu({ onNavigate, onAuth }: any) {
           {[
             { label: "HOME", action: () => onNavigate("home") },
             { label: "SHOP", action: () => onNavigate("shop") },
-            ...(currentUser?.role === "admin"
-              ? [{ label: "UPLOAD COLLECTION", action: () => onNavigate("create") }]
-              : []),
+            { label: "UPLOAD COLLECTION", action: () => onNavigate("create") },
             { label: currentUser ? "MY PROFILE" : "SIGN IN", action: () => currentUser ? onNavigate("profile") : onAuth() },
           ].map((item, i) => (
             <motion.button key={item.label} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} onClick={item.action} className="block w-full text-left text-3xl font-black tracking-[-.05em] py-4 border-b border-white/[.06] flex items-center justify-between group">
@@ -1469,14 +1467,7 @@ function Footer({ onNavigate }: any) {
             </div>
             <div>
               <p className="text-white/25 mb-4 font-medium">SELL</p>
-              {currentUser?.role === "admin" && (
-                <p
-                  className="mb-2.5 text-white/50 hover:text-white cursor-pointer transition"
-                  onClick={() => onNavigate("create")}
-                >
-                  UPLOAD COLLECTION
-                </p>
-              )}
+              <p className="mb-2.5 text-white/50 hover:text-white cursor-pointer transition" onClick={() => onNavigate("create")}>UPLOAD COLLECTION</p>
               <p className="mb-2.5 text-white/50 hover:text-white cursor-pointer transition">SELLER GUIDE</p>
               <p className="text-white/50 hover:text-white cursor-pointer transition">PRICING</p>
             </div>
