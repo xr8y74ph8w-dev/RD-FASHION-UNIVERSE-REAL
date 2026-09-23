@@ -253,81 +253,247 @@ function AuthModal({ mode, setMode, onClose }: { mode: "signin" | "signup"; setM
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
     if (mode === "signup") {
-      if (!name || !email || !password) { setError("All fields required"); return; }
-      if (password.length < 6) { setError("Password must be 6+ characters"); return; }
+      if (!name || !email || !password) {
+        setError("All fields required");
+        return;
+      }
+      if (password.length < 6) {
+        setError("Password must be 6+ characters");
+        return;
+      }
+
       const res = await signUp(name, email, password);
-      if (res.success) { notify(res.message); onClose(); }
-      else setError(res.message);
+      if (res.success) {
+        notify(res.message);
+        onClose();
+      } else {
+        setError(res.message);
+      }
     } else {
-      if (!email || !password) { setError("All fields required"); return; }
+      if (!email || !password) {
+        setError("All fields required");
+        return;
+      }
+
       const res = await signIn(email, password);
-      if (res.success) { notify(res.message); onClose(); }
-      else setError(res.message);
+      if (res.success) {
+        notify(res.message);
+        onClose();
+      } else {
+        setError(res.message);
+      }
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/85 backdrop-blur-xl grid place-items-center p-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} transition={{ type: "spring", damping: 25 }} onClick={e => e.stopPropagation()} className="bg-[#111] border border-white/10 rounded-xl w-full max-w-md p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h2 className="text-2xl font-medium">{mode === "signin" ? "Welcome back" : "Join the universe"}</h2>
-            <p className="text-[11px] text-white/40 mt-1">{mode === "signin" ? "Sign in to your account" : "Create your RD account"}</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:text-white/60"><X size={20} /></button>
-        </div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[150] overflow-y-auto bg-[#02050a]"
+      onClick={onClose}
+    >
+      {/* Cinematic fashion background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <img
+          src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=1800&q=90"
+          className="w-full h-full object-cover object-center opacity-[0.32]"
+          alt=""
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(80,150,210,0.28),transparent_35%),linear-gradient(180deg,rgba(2,5,10,0.45),rgba(2,5,10,0.88))]" />
+        <div className="absolute inset-0 bg-black/30" />
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <button type="button" onClick={async()=>{const r=await signInWithGoogle(); if(!r.success)setError(r.message)}} className="w-full border border-white/15 py-3 rounded-sm text-[10px] tracking-[.16em] hover:bg-white hover:text-black transition">CONTINUE WITH GOOGLE</button>
-          <div className="flex items-center gap-3"><div className="h-px bg-white/10 flex-1"/><span className="text-[9px] text-white/25">OR EMAIL</span><div className="h-px bg-white/10 flex-1"/></div>
-          {mode === "signup" && (
-            <div>
-              <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">FULL NAME</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-white/[.04] border border-white/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-white/30 transition" placeholder="Your name" />
-            </div>
-          )}
-          <div>
-            <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">EMAIL</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" className="w-full bg-white/[.04] border border-white/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-white/30 transition" placeholder="you@email.com" />
-          </div>
-          <div>
-            <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">PASSWORD</label>
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" className="w-full bg-white/[.04] border border-white/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-white/30 transition" placeholder="••••••••" />
-          </div>
+      <div className="relative min-h-screen flex items-center justify-center px-4 py-8 md:py-12">
 
-          {error && <p className="text-[11px] text-red-400">{error}</p>}
+        {/* Login Card */}
+        <motion.div
+          initial={{ scale: 0.96, y: 25, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.96, y: 25, opacity: 0 }}
+          transition={{ type: "spring", damping: 24, stiffness: 180 }}
+          onClick={e => e.stopPropagation()}
+          className="relative w-full max-w-[470px] overflow-hidden rounded-[28px] border border-white/[0.16] bg-black/[0.62] shadow-[0_30px_100px_rgba(0,0,0,0.65)] backdrop-blur-2xl"
+        >
 
-          <button type="submit" className="w-full bg-white text-black py-4 text-[10px] tracking-[.2em] font-medium rounded-lg hover:bg-white/90 transition mt-6">
-            {mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
-          </button>
-        </form>
+          {/* Blue cinematic glow */}
+          <div className="absolute -top-32 right-[-15%] w-72 h-72 rounded-full bg-sky-400/[0.12] blur-3xl pointer-events-none" />
 
-        <div className="mt-6 text-center">
-          <p className="text-[11px] text-white/40">
-            {mode === "signin" ? "Don't have an account?" : "Already have an account?"}
-            <button onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); }} className="text-white ml-2 hover:underline">
-              {mode === "signin" ? "Sign up" : "Sign in"}
-            </button>
-          </p>
-        </div>
+          <div className="relative p-7 sm:p-10">
 
-        {/* Social Sign In */}
-        <div className="mt-6 pt-6 border-t border-white/[.06]">
-          <p className="text-[9px] tracking-[.15em] text-white/30 text-center mb-4">OR CONTINUE WITH</p>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { name: "Google", icon: "G", color: "bg-red-500/10 text-red-400" },
-              { name: "Apple", icon: "", color: "bg-white/5 text-white" },
-              { name: "Instagram", icon: "IG", color: "bg-purple-500/10 text-purple-400" },
-            ].map(s => (
-              <button key={s.name} onClick={() => notify(`${s.name} sign-in coming soon`, "info")} className={`${s.color} py-3 rounded-lg text-[10px] tracking-[.1em] hover:opacity-80 transition`}>
-                {s.icon || s.name[0]}
+            {/* Header */}
+            <div className="flex justify-between items-start mb-9">
+              <div>
+                <div className="mb-5">
+                  <div className="text-2xl font-black tracking-[-0.08em]">RD</div>
+                  <div className="text-[7px] tracking-[0.42em] text-white/40 mt-1">
+                    FASHION UNIVERSE
+                  </div>
+                </div>
+
+                <h2 className="text-[34px] sm:text-[38px] leading-none font-semibold tracking-[-0.045em]">
+                  {mode === "signin" ? "Welcome back" : "Join the universe"}
+                </h2>
+
+                <p className="text-sm text-white/40 mt-3">
+                  {mode === "signin"
+                    ? "Sign in to your account"
+                    : "Create your RD account"}
+                </p>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="w-9 h-9 rounded-full border border-white/10 bg-white/[0.04] grid place-items-center text-white/60 hover:text-white hover:bg-white/[0.09] transition"
+              >
+                <X size={17} />
               </button>
-            ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+
+              {/* Signup name */}
+              {mode === "signup" && (
+                <div>
+                  <label className="text-[9px] tracking-[.18em] text-white/45 block mb-2.5">
+                    FULL NAME
+                  </label>
+                  <input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full h-14 bg-white/[0.045] border border-white/[0.14] rounded-2xl px-4 text-sm outline-none placeholder:text-white/20 focus:border-sky-300/50 focus:bg-white/[0.065] transition"
+                    placeholder="Your name"
+                  />
+                </div>
+              )}
+
+              {/* Email */}
+              <div>
+                <label className="text-[9px] tracking-[.18em] text-white/45 block mb-2.5">
+                  EMAIL
+                </label>
+                <input
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  type="email"
+                  className="w-full h-14 bg-white/[0.045] border border-white/[0.14] rounded-2xl px-4 text-sm outline-none placeholder:text-white/20 focus:border-sky-300/50 focus:bg-white/[0.065] transition"
+                  placeholder="you@email.com"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-[9px] tracking-[.18em] text-white/45 block mb-2.5">
+                  PASSWORD
+                </label>
+                <input
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  type="password"
+                  className="w-full h-14 bg-white/[0.045] border border-white/[0.14] rounded-2xl px-4 text-sm outline-none placeholder:text-white/20 focus:border-sky-300/50 focus:bg-white/[0.065] transition"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {mode === "signin" && (
+                <div className="flex justify-end -mt-1">
+                  <button
+                    type="button"
+                    onClick={() => notify("Password recovery coming soon", "info")}
+                    className="text-[10px] text-white/40 hover:text-white transition"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/[0.08] px-4 py-3 text-[11px] text-red-300">
+                  {error}
+                </div>
+              )}
+
+              {/* Main button */}
+              <button
+                type="submit"
+                className="group w-full h-14 bg-white text-black rounded-2xl text-[10px] tracking-[.22em] font-semibold hover:bg-white/90 transition flex items-center justify-center gap-3"
+              >
+                {mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
+                <span className="text-base group-hover:translate-x-1 transition-transform">
+                  →
+                </span>
+              </button>
+            </form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-4 my-7">
+              <div className="h-px bg-white/[0.12] flex-1" />
+              <span className="text-[9px] text-white/30 tracking-[.12em]">OR</span>
+              <div className="h-px bg-white/[0.12] flex-1" />
+            </div>
+
+            {/* Google + Apple */}
+            <div className="grid grid-cols-2 gap-3">
+
+              {/* Google */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const r = await signInWithGoogle();
+                  if (!r.success) setError(r.message);
+                }}
+                className="h-14 rounded-2xl border border-white/[0.13] bg-white/[0.055] hover:bg-white/[0.10] transition flex items-center justify-center gap-3"
+              >
+                <span className="text-xl font-medium bg-gradient-to-br from-blue-500 via-red-500 to-yellow-400 bg-clip-text text-transparent">
+                  G
+                </span>
+                <span className="text-[10px] tracking-[.12em] text-white/75">
+                  GOOGLE
+                </span>
+              </button>
+
+              {/* Apple */}
+              <button
+                type="button"
+                onClick={() => notify("Apple sign-in coming soon", "info")}
+                className="h-14 rounded-2xl border border-white/[0.13] bg-white/[0.055] hover:bg-white/[0.10] transition flex items-center justify-center gap-3"
+              >
+                <span className="text-[22px] text-white"></span>
+                <span className="text-[10px] tracking-[.12em] text-white/75">
+                  APPLE
+                </span>
+              </button>
+            </div>
+
+            {/* Switch account mode */}
+            <div className="mt-8 text-center">
+              <p className="text-[11px] text-white/40">
+                {mode === "signin"
+                  ? "Don't have an account?"
+                  : "Already have an account?"}
+                <button
+                  onClick={() => {
+                    setMode(mode === "signin" ? "signup" : "signin");
+                    setError("");
+                  }}
+                  className="text-white ml-2 hover:text-sky-300 transition"
+                >
+                  {mode === "signin" ? "Sign up" : "Sign in"}
+                </button>
+              </p>
+            </div>
+
+            <div className="mt-7 text-center">
+              <p className="text-[7px] tracking-[.3em] text-white/20">
+                RD FASHION UNIVERSE · EST. 2026
+              </p>
+            </div>
+
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }
