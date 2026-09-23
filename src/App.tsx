@@ -1370,16 +1370,112 @@ function CartDrawer({ onClose, onCheckout, onShop }: any) {
 function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
   const { currentUser, cart, cartTotal, placeOrder, notify } = useApp();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", address: "", city: "", pin: "", card: "" });
+  const [form, setForm] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", address: "", city: "", pin: "" });
   const [orderId, setOrderId] = useState("");
+  const [paying, setPaying] = useState(false);
 
   if (!currentUser) { onAuth(); return null; }
 
+  const loadRazorpay = () => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => reject(new Error("Razorpay Checkout failed to load"));
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePlaceOrder = async () => {
-    if (!form.address || !form.city || !form.pin) { notify("Fill all shipping details", "error"); return; }
-    const id = await placeOrder(form);
-    setOrderId(id);
-    setStep(3);
+    if (!form.address || !form.city || !form.pin) {
+      notify("Fill all shipping details", "error");
+      return;
+    }
+
+    try {
+      setPaying(true);
+
+      await loadRazorpay();
+
+      const total = cartTotal + (cartTotal < 2999 ? 99 : 0);
+
+      const createResponse = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          receipt: `rd_${Date.now()}`,
+        }),
+      });
+
+      const razorOrder = await createResponse.json();
+
+      if (!createResponse.ok) {
+        throw new Error(razorOrder.error || "Unable to create payment order");
+      }
+
+      const options = {
+        key: razorOrder.key_id,
+        amount: razorOrder.amount,
+        currency: razorOrder.currency,
+        name: "RD FASHION UNIVERSE",
+        description: "Fashion order payment",
+        order_id: razorOrder.id,
+        prefill: {
+          name: form.name,
+          email: form.email,
+        },
+        theme: {
+          color: "#000000",
+        },
+        handler: async (response: any) => {
+          try {
+            const verifyResponse = await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+
+            const verification = await verifyResponse.json();
+
+            if (!verifyResponse.ok || !verification.verified) {
+              throw new Error(verification.error || "Payment verification failed");
+            }
+
+            const id = await placeOrder({
+              ...form,
+              paymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+            });
+
+            setOrderId(id);
+            setStep(3);
+          } catch (error: any) {
+            notify(error?.message || "Payment verification failed", "error");
+          } finally {
+            setPaying(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setPaying(false),
+        },
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.on("payment.failed", () => {
+        setPaying(false);
+        notify("Payment failed. Please try again.", "error");
+      });
+      razorpay.open();
+    } catch (error: any) {
+      setPaying(false);
+      notify(error?.message || "Unable to start payment", "error");
+    }
   };
 
   return (
@@ -1428,22 +1524,20 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
 
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-            <div>
-              <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">CARD NUMBER</label>
-              <div className="relative">
-                <input value={form.card} onChange={e => setForm({ ...form, card: e.target.value })} className="w-full bg-white/[.04] border border-white/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-white/30 pr-12" placeholder="4242 4242 4242 4242" />
-                <CreditCard size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30" />
+            <div className="border border-white/10 bg-white/[.03] rounded-lg p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-white text-black grid place-items-center text-lg font-semibold">
+                  ₹
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">Secure Online Payment</p>
+                  <p className="text-[9px] tracking-[.16em] text-white/40 mt-1">POWERED BY RAZORPAY</p>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">EXPIRY</label>
-                <input className="w-full bg-white/[.04] border border-white/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-white/30" placeholder="MM/YY" />
-              </div>
-              <div>
-                <label className="text-[9px] tracking-[.15em] text-white/40 block mb-2">CVV</label>
-                <input className="w-full bg-white/[.04] border border-white/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-white/30" placeholder="123" type="password" />
-              </div>
+              <p className="text-xs leading-5 text-white/45">
+                UPI, credit/debit cards, net banking and supported wallets are available
+                securely through Razorpay Checkout.
+              </p>
             </div>
 
             {/* Summary */}
