@@ -199,12 +199,9 @@ function Navbar({ onNavigate, onSearch, onCart, onMenu, onAuth, cartCount, wishC
         <div className={`rounded-full border transition-all duration-500 px-5 md:px-7 py-3 flex items-center justify-between ${
           scrolled ? "bg-black/80 backdrop-blur-2xl border-white/10 shadow-2xl" : "bg-black/40 backdrop-blur-xl border-white/5"
         }`}>
-          <button onClick={() => onNavigate("home")} className="leading-none group flex items-center">
-            <img
-              src="/rd-logo.png"
-              alt="RD Fashion Universe"
-              className="h-10 md:h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-            />
+          <button onClick={() => onNavigate("home")} className="leading-none group">
+            <div className="text-2xl md:text-3xl font-black tracking-[-.09em]">RD</div>
+            <div className="text-[6px] tracking-[.43em] text-white/50 mt-0.5">FASHION UNIVERSE</div>
           </button>
 
           <div className="hidden lg:flex items-center gap-6 text-[10px] tracking-[.18em]">
