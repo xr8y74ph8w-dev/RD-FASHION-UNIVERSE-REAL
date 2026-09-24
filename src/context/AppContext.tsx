@@ -1020,13 +1020,24 @@ const placeOrder = useCallback(
 
     const orderItems = cart.map(item => ({
       order_id: order.id,
-      product_id: item.productId,
+      product_id:
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          item.productId || ''
+        )
+          ? item.productId
+          : null,
       seller_id:
-        item.sellerId ||
-        item.product?.sellerId ||
-        null,
-      collection_id:
-        item.collectionId || null,
+        item.sellerId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          item.sellerId
+        )
+          ? item.sellerId
+          : item.product?.sellerId &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              item.product.sellerId
+            )
+            ? item.product.sellerId
+            : null,
       product_name:
         item.product?.name || '',
       price:
@@ -1045,10 +1056,10 @@ const placeOrder = useCallback(
         .insert(orderItems);
 
     if (itemError) {
-      throw new Error(
-        itemError.message
-      );
-    }
+  console.error("ORDER ITEMS INSERT ERROR:", itemError);
+  console.error("ORDER ITEMS DATA:", orderItems);
+  throw new Error(itemError.message);
+}
 
     setOrders(prev => [
       {
