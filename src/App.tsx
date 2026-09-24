@@ -1213,8 +1213,8 @@ function ProductModal({ product: p, onClose, onAuth }: any) {
     for (let i = 0; i < qty; i++) {
       addToCart({
         productId: p.id,
-        collectionId: p.collectionId || "default",
-        sellerId: p.sellerId || "system",
+        collectionId: p.collectionId || null,
+        sellerId: p.sellerId || null,
         product: p,
         size,
         color,
