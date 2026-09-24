@@ -970,102 +970,116 @@ export function AppProvider({
 
   /* ---------------- PLACE ORDER ---------------- */
 
-  const placeOrder = useCallback(
-    async (address: any): Promise<string> => {
-      if (!currentUser) {
-        throw new Error(
-          'Please login before placing an order.'
-        );
-      }
-
-      if (cart.length === 0) {
-        throw new Error(
-          'Your cart is empty.'
-        );
-      }
-
-      const { data: order, error } =
-        await supabase
-          .from('orders')
-          .insert({
-            user_id: currentUser.id,
-            total: cartTotal,
-            status: 'pending',
-            address
-          })
-          .select()
-          .single();
-
-      if (error || !order) {
-        throw new Error(
-          error?.message ||
-            'Unable to create order.'
-        );
-      }
-
-      const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.productId,
-        seller_id:
-          item.sellerId ||
-          item.product?.sellerId ||
-          null,
-        collection_id:
-          item.collectionId || null,
-        product_name:
-          item.product?.name || '',
-        price:
-          Number(item.product?.price || 0),
-        image:
-          item.product?.images?.[0] ||
-          null,
-        size: item.size || '',
-        color: item.color || '',
-        quantity: item.qty
-      }));
-
-      const { error: itemError } =
-        await supabase
-          .from('order_items')
-          .insert(orderItems);
-
-      if (itemError) {
-        throw new Error(
-          itemError.message
-        );
-      }
-
-      setOrders(prev => [
-        {
-          id: order.id,
-          userId: currentUser.id,
-          items: cart,
-          total: cartTotal,
-          status: 'pending',
-          date: Date.now(),
-          address
-        },
-        ...prev
-      ]);
-
-      clearCart();
-
-      notify(
-        'Order placed successfully.',
-        'success'
+const placeOrder = useCallback(
+  async (orderData: any): Promise<string> => {
+    if (!currentUser) {
+      throw new Error(
+        'Please login before placing an order.'
       );
+    }
 
-      return order.id;
-    },
-    [
-      currentUser,
-      cart,
-      cartTotal,
-      clearCart,
-      notify
-    ]
-  );
+    if (cart.length === 0) {
+      throw new Error(
+        'Your cart is empty.'
+      );
+    }
 
+    const paymentId =
+      orderData?.paymentId || null;
+
+    const paymentMethod =
+      paymentId
+        ? 'razorpay'
+        : null;
+
+    const orderStatus =
+      paymentId
+        ? 'success'
+        : 'pending';
+
+    const { data: order, error } =
+      await supabase
+        .from('orders')
+        .insert({
+          user_id: currentUser.id,
+          total: cartTotal,
+          status: orderStatus,
+          payment_method: paymentMethod,
+          payment_id: paymentId,
+          address: orderData
+        })
+        .select()
+        .single();
+
+    if (error || !order) {
+      throw new Error(
+        error?.message ||
+          'Unable to create order.'
+      );
+    }
+
+    const orderItems = cart.map(item => ({
+      order_id: order.id,
+      product_id: item.productId,
+      seller_id:
+        item.sellerId ||
+        item.product?.sellerId ||
+        null,
+      collection_id:
+        item.collectionId || null,
+      product_name:
+        item.product?.name || '',
+      price:
+        Number(item.product?.price || 0),
+      image:
+        item.product?.images?.[0] ||
+        null,
+      size: item.size || '',
+      color: item.color || '',
+      quantity: item.qty
+    }));
+
+    const { error: itemError } =
+      await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+    if (itemError) {
+      throw new Error(
+        itemError.message
+      );
+    }
+
+    setOrders(prev => [
+      {
+        id: order.id,
+        userId: currentUser.id,
+        items: cart,
+        total: cartTotal + (cartTotal < 2999 ? 99 : 0),
+        status: orderStatus,
+        date: Date.now(),
+        address: orderData
+      },
+      ...prev
+    ]);
+
+    clearCart();
+
+    notify(
+      'Order placed successfully.',
+      'success'
+    );
+
+    return order.id;
+  },
+  [
+    currentUser,
+    cart,
+    cartTotal,
+    clearCart,
+    notify
+  ]
+);
   /* ---------------- CONTEXT VALUE ---------------- */
 
   const value: AppContextType = {
