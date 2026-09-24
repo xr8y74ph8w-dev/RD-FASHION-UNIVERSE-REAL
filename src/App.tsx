@@ -207,9 +207,11 @@ function Navbar({ onNavigate, onSearch, onCart, onMenu, onAuth, cartCount, wishC
           <div className="hidden lg:flex items-center gap-6 text-[10px] tracking-[.18em]">
             <button onClick={() => onNavigate("home")} className={`transition ${page === "home" ? "text-white" : "text-white/60 hover:text-white"}`}>HOME</button>
             <button onClick={() => onNavigate("shop")} className={`transition ${page === "shop" ? "text-white" : "text-white/60 hover:text-white"}`}>SHOP</button>
-            <button onClick={() => onNavigate("create")} className={`transition flex items-center gap-1.5 ${page === "create" ? "text-white" : "text-white/60 hover:text-white"}`}>
-              <Upload size={12} /> UPLOAD
-            </button>
+            {currentUser?.role === "admin" && (
+              <button onClick={() => onNavigate("create")} className={`transition flex items-center gap-1.5 ${page === "create" ? "text-white" : "text-white/60 hover:text-white"}`}>
+                <Upload size={12} /> UPLOAD
+              </button>
+            )}
             {currentUser?.role === "admin" && (
               <button
                 onClick={() => onNavigate("admin")}
