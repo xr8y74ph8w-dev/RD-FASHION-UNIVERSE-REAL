@@ -1027,21 +1027,30 @@ const placeOrder = useCallback(
       orderData?.paymentId || null;
 
     const paymentMethod =
-      paymentId
-        ? 'razorpay'
-        : null;
+      orderData?.paymentMethod ||
+      (paymentId ? 'razorpay' : null);
+
+    const isCod =
+      paymentMethod === 'cod';
+
+    const orderTotal =
+      isCod
+        ? cartTotal + 100
+        : cartTotal;
 
     const orderStatus =
-      paymentId
-        ? 'success'
-        : 'pending';
+      isCod
+        ? 'pending'
+        : paymentId
+          ? 'success'
+          : 'pending';
 
     const { data: order, error } =
       await supabase
         .from('orders')
         .insert({
           user_id: currentUser.id,
-          total: cartTotal,
+          total: orderTotal,
           status: orderStatus,
           payment_method: paymentMethod,
           payment_id: paymentId,
@@ -1105,7 +1114,7 @@ const placeOrder = useCallback(
         id: order.id,
         userId: currentUser.id,
         items: cart,
-        total: cartTotal + (cartTotal < 2999 ? 99 : 0),
+        total: orderTotal,
         status: orderStatus,
         date: Date.now(),
         address: orderData

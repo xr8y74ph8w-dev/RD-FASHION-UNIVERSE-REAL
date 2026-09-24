@@ -1651,6 +1651,7 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
   const [form, setForm] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", address: "", city: "", pin: "" });
   const [orderId, setOrderId] = useState("");
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cod">("online");
 
   if (!currentUser) { onAuth(); return null; }
 
@@ -1680,13 +1681,21 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
 
       await loadRazorpay();
 
-      const total = cartTotal + (cartTotal < 2999 ? 99 : 0);
+      const orderTotal =
+        paymentMethod === "cod"
+          ? cartTotal + 100
+          : cartTotal;
+
+      const amountToPayNow =
+        paymentMethod === "cod"
+          ? 100
+          : orderTotal;
 
       const createResponse = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: total,
+          amount: amountToPayNow,
           receipt: `rd_${Date.now()}`,
         }),
       });
@@ -1729,6 +1738,9 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
               ...form,
               paymentId: response.razorpay_payment_id,
               razorpayOrderId: response.razorpay_order_id,
+              paymentMethod,
+              codAdvance: paymentMethod === "cod" ? 100 : 0,
+              cashOnDelivery: paymentMethod === "cod" ? cartTotal : 0,
             });
 
             setOrderId(id);
@@ -1802,23 +1814,48 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
 
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-            <div className="border border-white/10 bg-white/[.03] rounded-lg p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-white text-black grid place-items-center text-lg font-semibold">
-                  ₹
+            <div className="space-y-3">
+              <button
+                onClick={() => setPaymentMethod("online")}
+                className={`w-full text-left border rounded-lg p-5 transition ${
+                  paymentMethod === "online"
+                    ? "border-white bg-white/[.08]"
+                    : "border-white/10 bg-white/[.03] hover:border-white/25"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-white">Online Payment</p>
+                    <p className="text-[9px] tracking-[.14em] text-white/40 mt-1">UPI • CARD • NET BANKING</p>
+                  </div>
+                  <span className="text-sm font-medium">{money(cartTotal)}</span>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Secure Online Payment</p>
-                  <p className="text-[9px] tracking-[.16em] text-white/40 mt-1">POWERED BY RAZORPAY</p>
+                <p className="text-xs text-white/45 mt-3">
+                  Pay the full order amount securely through Razorpay.
+                </p>
+              </button>
+
+              <button
+                onClick={() => setPaymentMethod("cod")}
+                className={`w-full text-left border rounded-lg p-5 transition ${
+                  paymentMethod === "cod"
+                    ? "border-white bg-white/[.08]"
+                    : "border-white/10 bg-white/[.03] hover:border-white/25"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-white">Cash on Delivery</p>
+                    <p className="text-[9px] tracking-[.14em] text-white/40 mt-1">₹100 ADVANCE PAYMENT</p>
+                  </div>
+                  <span className="text-sm font-medium">{money(cartTotal + 100)}</span>
                 </div>
-              </div>
-              <p className="text-xs leading-5 text-white/45">
-                UPI, credit/debit cards, net banking and supported wallets are available
-                securely through Razorpay Checkout.
-              </p>
+                <p className="text-xs text-white/45 mt-3">
+                  Pay {money(100)} now and {money(cartTotal)} cash when your order is delivered.
+                </p>
+              </button>
             </div>
 
-            {/* Summary */}
             <div className="mt-6 p-4 bg-white/[.03] rounded-lg border border-white/[.06]">
               <p className="text-[9px] tracking-[.15em] text-white/40 mb-3">ORDER SUMMARY</p>
               {cart.map((x, i) => (
@@ -1827,15 +1864,46 @@ function CheckoutModal({ onClose, onNavigate, onAuth }: any) {
                   <span className="shrink-0">{money(x.product.price * x.qty)}</span>
                 </div>
               ))}
-              <div className="border-t border-white/[.06] mt-3 pt-3 flex justify-between">
-                <span className="text-sm">Total</span>
-                <span className="text-sm font-medium">{money(cartTotal + (cartTotal < 2999 ? 99 : 0))}</span>
+
+              <div className="border-t border-white/[.06] mt-3 pt-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Product Total</span>
+                  <span>{money(cartTotal)}</span>
+                </div>
+
+                {paymentMethod === "cod" && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">COD Charge</span>
+                      <span>{money(100)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Pay Now</span>
+                      <span>{money(100)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Cash on Delivery</span>
+                      <span>{money(cartTotal)}</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="border-t border-white/[.06] pt-3 flex justify-between">
+                  <span className="text-sm font-medium">Order Total</span>
+                  <span className="text-sm font-medium">
+                    {money(paymentMethod === "cod" ? cartTotal + 100 : cartTotal)}
+                  </span>
+                </div>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setStep(1)} className="flex-1 border border-white/15 py-4 text-[10px] tracking-[.2em] rounded-lg hover:border-white/30 transition">← BACK</button>
-              <button onClick={handlePlaceOrder} className="flex-[2] bg-white text-black py-4 text-[10px] tracking-[.2em] font-medium rounded-lg hover:bg-white/90 transition">PAY {money(cartTotal + (cartTotal < 2999 ? 99 : 0))}</button>
+              <button onClick={handlePlaceOrder} className="flex-[2] bg-white text-black py-4 text-[10px] tracking-[.2em] font-medium rounded-lg hover:bg-white/90 transition">
+                {paymentMethod === "cod"
+                  ? `PAY ${money(100)} NOW`
+                  : `PAY ${money(cartTotal)}`}
+              </button>
             </div>
           </motion.div>
         )}
