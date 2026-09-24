@@ -121,6 +121,7 @@ function AppContent() {
         {page === "shop" && <ShopPage allCollections={allCollections} onViewCollection={setViewCollection} onAuth={() => setAuthModal("signin")} />}
         {page === "create" && <CreateCollectionPage onNavigate={navigate} />}
         {page === "profile" && <ProfilePage onViewCollection={setViewCollection} onNavigate={navigate} onAuth={() => setAuthModal("signin")} />}
+        {page === "admin" && <AdminDashboard onNavigate={navigate} />}
       </main>
 
       {/* FOOTER */}
@@ -209,6 +210,14 @@ function Navbar({ onNavigate, onSearch, onCart, onMenu, onAuth, cartCount, wishC
             <button onClick={() => onNavigate("create")} className={`transition flex items-center gap-1.5 ${page === "create" ? "text-white" : "text-white/60 hover:text-white"}`}>
               <Upload size={12} /> UPLOAD
             </button>
+            {currentUser?.role === "admin" && (
+              <button
+                onClick={() => onNavigate("admin")}
+                className={`transition ${page === "admin" ? "text-white" : "text-white/60 hover:text-white"}`}
+              >
+                ADMIN
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -744,6 +753,275 @@ function ShopPage({ allCollections, onViewCollection, onAuth }: any) {
             {!currentUser && <button onClick={onAuth} className="mt-4 text-[10px] tracking-[.15em] border border-white/20 px-5 py-2.5 rounded-full hover:bg-white hover:text-black transition">SIGN IN TO UPLOAD</button>}
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+
+// ============ ADMIN DASHBOARD ============
+function AdminDashboard({ onNavigate }: any) {
+  const { currentUser, collections, orders } = useApp();
+
+  if (!currentUser || currentUser.role !== "admin") {
+    return (
+      <div className="min-h-[80vh] grid place-items-center text-center px-6">
+        <div>
+          <p className="text-white/40">Admin access required</p>
+          <button
+            onClick={() => onNavigate("home")}
+            className="mt-5 border border-white/20 rounded-full px-5 py-2 text-[10px] tracking-[.15em]"
+          >
+            GO HOME
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalOrders = orders.length;
+  const successfulOrders = orders.filter(
+    (order) => order.status?.toLowerCase() === "success"
+  );
+  const pendingOrders = orders.filter(
+    (order) => order.status?.toLowerCase() === "pending"
+  );
+
+  const totalRevenue = successfulOrders.reduce(
+    (sum, order) => sum + Number(order.total || 0),
+    0
+  );
+
+  const recentOrders = orders.slice(0, 10);
+
+  const statusClass = (status: string) => {
+    const value = status?.toLowerCase();
+
+    if (value === "success") {
+      return "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
+    }
+
+    if (value === "pending") {
+      return "bg-amber-500/10 text-amber-300 border-amber-500/20";
+    }
+
+    if (value === "failed" || value === "cancelled") {
+      return "bg-red-500/10 text-red-300 border-red-500/20";
+    }
+
+    return "bg-white/5 text-white/60 border-white/10";
+  };
+
+  return (
+    <section className="min-h-[80vh] px-4 md:px-8 py-12">
+      <div className="max-w-[1400px] mx-auto">
+
+        <div className="mb-10">
+          <p className="text-[10px] tracking-[.3em] text-white/40">
+            RD FASHION UNIVERSE
+          </p>
+
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+            <div>
+              <h1 className="text-4xl md:text-6xl font-black tracking-[-.05em] mt-2">
+                ADMIN DASHBOARD
+              </h1>
+
+              <p className="text-white/40 mt-3">
+                Manage orders, sales and your fashion universe.
+              </p>
+            </div>
+
+            <div className="text-left md:text-right">
+              <p className="text-[9px] tracking-[.2em] text-white/30">
+                ADMIN ACCOUNT
+              </p>
+              <p className="text-sm font-semibold mt-1">
+                {currentUser.name}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* STATS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+
+          <div className="border border-white/10 rounded-2xl p-6 bg-white/[.03]">
+            <p className="text-[10px] tracking-[.2em] text-white/40">
+              REVENUE
+            </p>
+            <p className="text-3xl font-bold mt-3">
+              ₹{totalRevenue.toLocaleString("en-IN")}
+            </p>
+          </div>
+
+          <div className="border border-white/10 rounded-2xl p-6 bg-white/[.03]">
+            <p className="text-[10px] tracking-[.2em] text-white/40">
+              TOTAL ORDERS
+            </p>
+            <p className="text-3xl font-bold mt-3">
+              {totalOrders}
+            </p>
+          </div>
+
+          <div className="border border-white/10 rounded-2xl p-6 bg-white/[.03]">
+            <p className="text-[10px] tracking-[.2em] text-white/40">
+              SUCCESSFUL
+            </p>
+            <p className="text-3xl font-bold mt-3">
+              {successfulOrders.length}
+            </p>
+          </div>
+
+          <div className="border border-white/10 rounded-2xl p-6 bg-white/[.03]">
+            <p className="text-[10px] tracking-[.2em] text-white/40">
+              PENDING
+            </p>
+            <p className="text-3xl font-bold mt-3">
+              {pendingOrders.length}
+            </p>
+          </div>
+
+          <div className="border border-white/10 rounded-2xl p-6 bg-white/[.03]">
+            <p className="text-[10px] tracking-[.2em] text-white/40">
+              COLLECTIONS
+            </p>
+            <p className="text-3xl font-bold mt-3">
+              {collections.length}
+            </p>
+          </div>
+
+        </div>
+
+        {/* ORDERS */}
+        <div className="mt-8 border border-white/10 rounded-2xl bg-white/[.03] overflow-hidden">
+
+          <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">
+                Recent Orders
+              </h2>
+
+              <p className="text-xs text-white/40 mt-1">
+                Latest orders across RD FASHION UNIVERSE.
+              </p>
+            </div>
+
+            <span className="text-[9px] tracking-[.15em] text-white/40">
+              {totalOrders} ORDERS
+            </span>
+          </div>
+
+          {recentOrders.length === 0 ? (
+            <div className="p-10 text-center text-white/40">
+              No orders found.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left">
+
+                <thead>
+                  <tr className="border-b border-white/10 text-[9px] tracking-[.15em] text-white/30">
+                    <th className="px-6 py-4">ORDER</th>
+                    <th className="px-6 py-4">CUSTOMER</th>
+                    <th className="px-6 py-4">DATE</th>
+                    <th className="px-6 py-4">ITEMS</th>
+                    <th className="px-6 py-4">AMOUNT</th>
+                    <th className="px-6 py-4">PAYMENT</th>
+                    <th className="px-6 py-4">STATUS</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {recentOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="border-b border-white/5 last:border-0 hover:bg-white/[.025] transition"
+                    >
+                      <td className="px-6 py-5">
+                        <p className="text-xs font-semibold">
+                          #{order.id.slice(0, 8)}
+                        </p>
+                        <p className="text-[9px] text-white/30 mt-1">
+                          {order.userId.slice(0, 8)}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <p className="text-xs font-semibold">
+                          {order.customerName || "Unknown customer"}
+                        </p>
+                        <p className="text-[9px] text-white/40 mt-1">
+                          {order.customerEmail || "No email"}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-5 text-xs text-white/60">
+                        {new Date(order.date).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric"
+                        })}
+                      </td>
+
+                      <td className="px-6 py-5 text-xs">
+                        {order.items.length}
+                      </td>
+
+                      <td className="px-6 py-5 text-sm font-semibold">
+                        ₹{Number(order.total || 0).toLocaleString("en-IN")}
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <p className="text-xs uppercase font-semibold">
+                          {order.paymentMethod || "—"}
+                        </p>
+                        <p className="text-[9px] text-white/30 mt-1 max-w-[150px] truncate">
+                          {order.paymentId || "No payment ID"}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-[9px] tracking-[.1em] uppercase ${statusClass(order.status)}`}
+                        >
+                          {order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* QUICK ACTIONS */}
+        <div className="mt-8 border border-white/10 rounded-2xl p-6 bg-white/[.03]">
+          <h2 className="text-xl font-bold">
+            Quick Actions
+          </h2>
+
+          <div className="flex flex-wrap gap-3 mt-5">
+
+            <button
+              onClick={() => onNavigate("create")}
+              className="border border-white/20 rounded-full px-5 py-3 text-[10px] tracking-[.15em] hover:bg-white hover:text-black transition"
+            >
+              CREATE COLLECTION
+            </button>
+
+            <button
+              onClick={() => onNavigate("profile")}
+              className="border border-white/20 rounded-full px-5 py-3 text-[10px] tracking-[.15em] hover:bg-white hover:text-black transition"
+            >
+              VIEW PROFILE
+            </button>
+
+          </div>
+        </div>
+
       </div>
     </section>
   );

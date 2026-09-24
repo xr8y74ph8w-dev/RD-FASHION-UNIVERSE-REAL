@@ -62,6 +62,10 @@ export interface CartItem {
 export interface Order {
   id: string;
   userId: string;
+  customerName?: string;
+  customerEmail?: string;
+  paymentMethod?: string;
+  paymentId?: string;
   items: CartItem[];
   total: number;
   status: string;
@@ -370,22 +374,56 @@ export function AppProvider({
         );
       }
 
-      const { data: orderData } = await supabase
+      let { data: orderData } = await supabase
         .from('orders')
         .select('*, order_items(*)')
-        .eq('user_id', currentUser.id)
         .order('created_at', {
           ascending: false
         });
+
+      if (currentUser.role !== 'admin') {
+        orderData = (orderData || []).filter(
+          (order: any) => order.user_id === currentUser.id
+        );
+      }
+
+      const userIds = [
+        ...new Set(
+          (orderData || [])
+            .map((order: any) => order.user_id)
+            .filter(Boolean)
+        )
+      ];
+
+      const { data: profileData } = userIds.length
+        ? await supabase
+            .from('profiles')
+            .select('id, name, email')
+            .in('id', userIds)
+        : { data: [] };
+
+      const profileMap = new Map(
+        (profileData || []).map((profile: any) => [
+          profile.id,
+          profile
+        ])
+      );
 
       if (!mounted) {
         return;
       }
 
       const formattedOrders: Order[] = (orderData || []).map(
-        (order: any) => ({
+        (order: any) => {
+          const profile = profileMap.get(order.user_id);
+
+          return {
           id: order.id,
           userId: order.user_id,
+          customerName: profile?.name || 'Unknown customer',
+          customerEmail: profile?.email || '',
+          paymentMethod: order.payment_method || '',
+          paymentId: order.payment_id || '',
           total: Number(order.total || 0),
           status: order.status || 'pending',
           date: order.created_at
@@ -415,7 +453,8 @@ export function AppProvider({
               isUserCollection: true
             })
           )
-        })
+          };
+        }
       );
 
       setOrders(formattedOrders);
