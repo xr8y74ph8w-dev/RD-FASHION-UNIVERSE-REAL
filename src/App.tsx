@@ -545,10 +545,12 @@ function HomePage({ onNavigate, onViewCollection, allCollections, onAuth }: any)
                   {heroSlides[heroIdx].title}
                 </h1>
                 <div className="mt-8 flex flex-wrap gap-4">
-                  <button onClick={() => currentUser ? onNavigate("create") : onAuth()} className="group flex items-center gap-4 bg-white text-black px-7 py-4 text-[10px] tracking-[.2em] font-medium hover:bg-white/90 transition">
+                  {currentUser?.role === "admin" && (
+                  <button onClick={() => onNavigate("create")} className="group flex items-center gap-4 bg-white text-black px-7 py-4 text-[10px] tracking-[.2em] font-medium hover:bg-white/90 transition">
                     {heroSlides[heroIdx].cta}
                     <ArrowUpRight size={16} className="group-hover:rotate-45 transition-transform" />
                   </button>
+                  )}
                   <button onClick={() => onNavigate("shop")} className="px-7 py-4 border border-white/30 text-[10px] tracking-[.2em] hover:bg-white/10 transition">
                     EXPLORE SHOP
                   </button>
@@ -1992,7 +1994,12 @@ function MobileMenu({ onNavigate, onAuth }: any) {
           {[
             { label: "HOME", action: () => onNavigate("home") },
             { label: "SHOP", action: () => onNavigate("shop") },
-            { label: "UPLOAD COLLECTION", action: () => onNavigate("create") },
+            ...(currentUser?.role === "admin"
+              ? [
+                  { label: "UPLOAD COLLECTION", action: () => onNavigate("create") },
+                  { label: "ADMIN", action: () => onNavigate("admin") },
+                ]
+              : []),
             { label: currentUser ? "MY PROFILE" : "SIGN IN", action: () => currentUser ? onNavigate("profile") : onAuth() },
           ].map((item, i) => (
             <motion.button key={item.label} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} onClick={item.action} className="block w-full text-left text-3xl font-black tracking-[-.05em] py-4 border-b border-white/[.06] flex items-center justify-between group">
