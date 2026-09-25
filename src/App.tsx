@@ -96,7 +96,7 @@ function AppContent() {
           <motion.div animate={{ x: ["0%", "-50%"] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="flex whitespace-nowrap w-max">
             {[0, 1, 2].map(i => (
               <span key={i} className="text-[10px] tracking-[.22em] font-medium px-8">
-                FREE SHIPPING ON ₹2,999+ ✦ UPLOAD YOUR COLLECTIONS ✦ SELL WORLDWIDE ✦ NEW DROPS WEEKLY ✦
+                FREE SHIPPING ON ₹2,999+ ✦ SELL WORLDWIDE ✦ NEW DROPS WEEKLY ✦
               </span>
             ))}
           </motion.div>
@@ -199,9 +199,12 @@ function Navbar({ onNavigate, onSearch, onCart, onMenu, onAuth, cartCount, wishC
         <div className={`rounded-full border transition-all duration-500 px-5 md:px-7 py-3 flex items-center justify-between ${
           scrolled ? "bg-black/80 backdrop-blur-2xl border-white/10 shadow-2xl" : "bg-black/40 backdrop-blur-xl border-white/5"
         }`}>
-          <button onClick={() => onNavigate("home")} className="leading-none group">
-            <div className="text-2xl md:text-3xl font-black tracking-[-.09em]">RD</div>
-            <div className="text-[6px] tracking-[.43em] text-white/50 mt-0.5">FASHION UNIVERSE</div>
+          <button onClick={() => onNavigate("home")} className="leading-none group flex items-center">
+            <img
+              src="/rd-logo.png"
+              alt="RD Fashion Universe"
+              className="h-10 md:h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+            />
           </button>
 
           <div className="hidden lg:flex items-center gap-6 text-[10px] tracking-[.18em]">
@@ -570,7 +573,7 @@ function HomePage({ onNavigate, onViewCollection, allCollections, onAuth }: any)
       {/* FEATURES */}
       <section className="border-y border-white/[.06] grid md:grid-cols-3">
         {[
-          { icon: Upload, title: "UPLOAD COLLECTIONS", desc: "Create & sell your own designs" },
+          { icon: Sparkles, title: "NEW DROPS", desc: "Discover the latest collections" },
           { icon: Package, title: "GLOBAL SHIPPING", desc: "Deliver worldwide with ease" },
           { icon: Shield, title: "SECURE PAYMENTS", desc: "Safe & protected transactions" },
         ].map(({ icon: Icon, title, desc }, i) => (
