@@ -518,7 +518,7 @@ function HomePage({ onNavigate, onViewCollection, allCollections, onAuth }: any)
   const [heroIdx, setHeroIdx] = useState(0);
 
   const heroSlides = [
-    { title: "YOUR\nUNIVERSE.", subtitle: "CREATE · SELL · SHOP", cta: "UPLOAD COLLECTION", image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=2400&q=90" },
+    { title: "YOUR\nUNIVERSE.", subtitle: "SHOP PREMIUM FASHION", cta: "SHOP NOW", image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=2400&q=90" },
     { title: "WEAR\nYOUR\nIDENTITY.", subtitle: "DROP 01 / 2026", cta: "SHOP NOW", image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=2400&q=90" },
     { title: "CREATE\n& SELL.", subtitle: "YOUR DESIGNS. YOUR BRAND.", cta: "START SELLING", image: "https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=2400&q=90" },
   ];
@@ -757,7 +757,7 @@ function ShopPage({ allCollections, onViewCollection, onAuth }: any) {
         {!filtered.length && (
           <div className="py-24 text-center">
             <p className="text-white/30">No collections found</p>
-            {!currentUser && <button onClick={onAuth} className="mt-4 text-[10px] tracking-[.15em] border border-white/20 px-5 py-2.5 rounded-full hover:bg-white hover:text-black transition">SIGN IN TO UPLOAD</button>}
+
           </div>
         )}
       </div>
@@ -768,7 +768,12 @@ function ShopPage({ allCollections, onViewCollection, onAuth }: any) {
 
 // ============ ADMIN DASHBOARD ============
 function AdminDashboard({ onNavigate }: any) {
-  const { currentUser, collections, orders } = useApp();
+  const {
+    currentUser,
+    collections,
+    orders,
+    updateOrderDeliveryStatus
+  } = useApp();
 
   if (!currentUser || currentUser.role !== "admin") {
     return (
@@ -935,7 +940,8 @@ function AdminDashboard({ onNavigate }: any) {
                     <th className="px-6 py-4">ITEMS</th>
                     <th className="px-6 py-4">AMOUNT</th>
                     <th className="px-6 py-4">PAYMENT</th>
-                    <th className="px-6 py-4">STATUS</th>
+                    <th className="px-6 py-4">PAYMENT STATUS</th>
+                    <th className="px-6 py-4">DELIVERY</th>
                   </tr>
                 </thead>
 
@@ -994,6 +1000,30 @@ function AdminDashboard({ onNavigate }: any) {
                         >
                           {order.status}
                         </span>
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <select
+                          value={order.deliveryStatus || "PLACED"}
+                          onChange={async (e) => {
+                            try {
+                              await updateOrderDeliveryStatus(
+                                order.id,
+                                e.target.value
+                              );
+                            } catch (error: any) {
+                              alert(error?.message || "Failed to update delivery status.");
+                            }
+                          }}
+                          className="bg-black border border-white/15 rounded-lg px-3 py-2 text-[9px] tracking-[.08em] uppercase text-white outline-none cursor-pointer"
+                        >
+                          <option value="PLACED">PLACED</option>
+                          <option value="CONFIRMED">CONFIRMED</option>
+                          <option value="PACKED">PACKED</option>
+                          <option value="SHIPPED">SHIPPED</option>
+                          <option value="OUT FOR DELIVERY">OUT FOR DELIVERY</option>
+                          <option value="DELIVERED">DELIVERED</option>
+                        </select>
                       </td>
                     </tr>
                   ))}
@@ -1411,6 +1441,66 @@ function ProfilePage({ onViewCollection, onNavigate, onAuth }: any) {
                       {order.items.map((item, i) => (
                         <img key={i} src={item.product.images?.[0] || ""} className="w-14 h-14 object-cover rounded shrink-0" alt="" />
                       ))}
+                    </div>
+
+                    {/* DELIVERY TRACKING */}
+                    <div className="mt-5 pt-5 border-t border-white/[.06]">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[9px] tracking-[.18em] text-white/40 uppercase">
+                          Delivery Tracking
+                        </p>
+                        <span className="text-[9px] tracking-[.1em] text-white/70 uppercase">
+                          {order.deliveryStatus || "PLACED"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                        {[
+                          "PLACED",
+                          "CONFIRMED",
+                          "PACKED",
+                          "SHIPPED",
+                          "OUT FOR DELIVERY",
+                          "DELIVERED"
+                        ].map((step, index, steps) => {
+                          const currentIndex = Math.max(
+                            0,
+                            steps.indexOf(order.deliveryStatus || "PLACED")
+                          );
+                          const completed = index <= currentIndex;
+
+                          return (
+                            <div key={step} className="relative">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                    completed
+                                      ? "bg-white"
+                                      : "bg-white/15 border border-white/20"
+                                  }`}
+                                />
+                                <span
+                                  className={`text-[8px] tracking-[.08em] uppercase ${
+                                    completed ? "text-white" : "text-white/30"
+                                  }`}
+                                >
+                                  {step}
+                                </span>
+                              </div>
+
+                              {index < steps.length - 1 && (
+                                <div
+                                  className={`hidden lg:block absolute top-[5px] left-[12px] w-[calc(100%+12px)] h-px ${
+                                    index < currentIndex
+                                      ? "bg-white/60"
+                                      : "bg-white/10"
+                                  }`}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -2085,7 +2175,7 @@ function Footer({ onNavigate }: any) {
             </div>
             <div>
               <p className="text-white/25 mb-4 font-medium">SELL</p>
-              <p className="mb-2.5 text-white/50 hover:text-white cursor-pointer transition" onClick={() => onNavigate("create")}>UPLOAD COLLECTION</p>
+
               <p className="mb-2.5 text-white/50 hover:text-white cursor-pointer transition">SELLER GUIDE</p>
               <p className="text-white/50 hover:text-white cursor-pointer transition">PRICING</p>
             </div>

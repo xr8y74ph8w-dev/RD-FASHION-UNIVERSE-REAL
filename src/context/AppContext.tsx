@@ -69,6 +69,7 @@ export interface Order {
   items: CartItem[];
   total: number;
   status: string;
+  deliveryStatus?: string;
   date: number;
   address?: any;
 }
@@ -426,6 +427,7 @@ export function AppProvider({
           paymentId: order.payment_id || '',
           total: Number(order.total || 0),
           status: order.status || 'pending',
+          deliveryStatus: order.delivery_status || 'PLACED',
           date: order.created_at
             ? new Date(order.created_at).getTime()
             : Date.now(),
@@ -1009,6 +1011,32 @@ export function AppProvider({
 
   /* ---------------- PLACE ORDER ---------------- */
 
+const updateOrderDeliveryStatus = useCallback(
+  async (orderId: string, deliveryStatus: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw new Error('Admin access required.');
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ delivery_status: deliveryStatus })
+      .eq('id', orderId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === orderId
+          ? { ...order, deliveryStatus }
+          : order
+      )
+    );
+  },
+  [currentUser]
+);
+
 const placeOrder = useCallback(
   async (orderData: any): Promise<string> => {
     if (!currentUser) {
@@ -1171,6 +1199,7 @@ const placeOrder = useCallback(
 
     orders,
     placeOrder,
+    updateOrderDeliveryStatus,
 
     toast,
     toastType,
