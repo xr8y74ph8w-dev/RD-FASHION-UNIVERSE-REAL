@@ -1445,62 +1445,114 @@ function ProfilePage({ onViewCollection, onNavigate, onAuth }: any) {
 
                     {/* DELIVERY TRACKING */}
                     <div className="mt-5 pt-5 border-t border-white/[.06]">
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-[9px] tracking-[.18em] text-white/40 uppercase">
-                          Delivery Tracking
-                        </p>
-                        <span className="text-[9px] tracking-[.1em] text-white/70 uppercase">
-                          {order.deliveryStatus || "PLACED"}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                        {[
+                      {(() => {
+                        const steps = [
                           "PLACED",
                           "CONFIRMED",
                           "PACKED",
                           "SHIPPED",
                           "OUT FOR DELIVERY",
                           "DELIVERED"
-                        ].map((step, index, steps) => {
-                          const currentIndex = Math.max(
-                            0,
-                            steps.indexOf(order.deliveryStatus || "PLACED")
-                          );
-                          const completed = index <= currentIndex;
+                        ];
 
-                          return (
-                            <div key={step} className="relative">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                                    completed
-                                      ? "bg-white"
-                                      : "bg-white/15 border border-white/20"
-                                  }`}
-                                />
-                                <span
-                                  className={`text-[8px] tracking-[.08em] uppercase ${
-                                    completed ? "text-white" : "text-white/30"
-                                  }`}
-                                >
-                                  {step}
-                                </span>
+                        const currentStatus = order.deliveryStatus || "PLACED";
+                        const currentIndex = Math.max(
+                          0,
+                          steps.indexOf(currentStatus)
+                        );
+
+                        return (
+                          <>
+                            <div className="flex items-center justify-between mb-5">
+                              <div>
+                                <p className="text-[9px] tracking-[.18em] text-white/40 uppercase">
+                                  Delivery Tracking
+                                </p>
+                                <p className="text-xs text-white/80 mt-1">
+                                  {currentStatus}
+                                </p>
                               </div>
 
-                              {index < steps.length - 1 && (
-                                <div
-                                  className={`hidden lg:block absolute top-[5px] left-[12px] w-[calc(100%+12px)] h-px ${
-                                    index < currentIndex
-                                      ? "bg-white/60"
-                                      : "bg-white/10"
-                                  }`}
-                                />
-                              )}
+                              <span className="text-[8px] tracking-[.12em] uppercase border border-white/10 rounded-full px-3 py-1 text-white/50">
+                                {currentIndex + 1} / {steps.length}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
+
+                            <div className="overflow-x-auto pb-2">
+                              <div className="min-w-[620px] flex items-start">
+                                {steps.map((step, index) => {
+                                  const completed = index <= currentIndex;
+                                  const active = index === currentIndex;
+
+                                  return (
+                                    <div
+                                      key={step}
+                                      className="flex-1 relative"
+                                    >
+                                      <div className="flex items-center">
+                                        <div
+                                          className={`w-4 h-4 rounded-full shrink-0 border flex items-center justify-center ${
+                                            completed
+                                              ? "bg-white border-white"
+                                              : "bg-black border-white/20"
+                                          } ${
+                                            active
+                                              ? "ring-4 ring-white/10"
+                                              : ""
+                                          }`}
+                                        >
+                                          {completed && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-black" />
+                                          )}
+                                        </div>
+
+                                        {index < steps.length - 1 && (
+                                          <div
+                                            className={`h-px flex-1 mx-2 ${
+                                              index < currentIndex
+                                                ? "bg-white"
+                                                : "bg-white/10"
+                                            }`}
+                                          />
+                                        )}
+                                      </div>
+
+                                      <p
+                                        className={`mt-3 pr-2 text-[8px] tracking-[.08em] uppercase leading-relaxed ${
+                                          completed
+                                            ? "text-white"
+                                            : "text-white/25"
+                                        }`}
+                                      >
+                                        {step}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="mt-4 rounded-lg border border-white/[.06] bg-white/[.02] px-4 py-3">
+                              <p className="text-[9px] tracking-[.12em] text-white/35 uppercase">
+                                Current Order Status
+                              </p>
+                              <p className="text-xs text-white mt-1">
+                                {currentStatus === "DELIVERED"
+                                  ? "Your order has been delivered."
+                                  : currentStatus === "OUT FOR DELIVERY"
+                                  ? "Your order is out for delivery."
+                                  : currentStatus === "SHIPPED"
+                                  ? "Your order has been shipped."
+                                  : currentStatus === "PACKED"
+                                  ? "Your order has been packed and is ready to ship."
+                                  : currentStatus === "CONFIRMED"
+                                  ? "Your order has been confirmed."
+                                  : "Your order has been placed successfully."}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
