@@ -1090,7 +1090,7 @@ function CreateCollectionPage({ onNavigate }: any) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { notify("Image too large (max 5MB)", "error"); return; }
+    if (file.size > 20 * 1024 * 1024) { notify("Image too large (max 20MB)", "error"); return; }
     const reader = new FileReader();
     reader.onload = () => setter(reader.result as string);
     reader.readAsDataURL(file);
@@ -1165,7 +1165,7 @@ function CreateCollectionPage({ onNavigate }: any) {
                   <label className="border-2 border-dashed border-white/15 rounded-lg p-10 flex flex-col items-center justify-center cursor-pointer hover:border-white/30 transition">
                     <ImageIcon size={32} strokeWidth={1} className="text-white/20 mb-3" />
                     <p className="text-[11px] text-white/40">Click to upload cover image</p>
-                    <p className="text-[9px] text-white/20 mt-1">JPG, PNG up to 5MB</p>
+                    <p className="text-[9px] text-white/20 mt-1">JPG, PNG up to 20MB</p>
                     <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, setColCover)} />
                   </label>
                 )}
