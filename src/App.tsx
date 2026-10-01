@@ -1607,9 +1607,9 @@ function CollectionDetail({ collection: col, onClose, onViewProduct, onProfile }
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-10">
             {col.products.map((p: UserProduct, i: number) => (
               <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="group">
-                <div className="relative aspect-[3/4] bg-[#111] overflow-hidden rounded-sm cursor-pointer" onClick={() => onViewProduct({ ...p, collectionId: col.id, sellerId: col.userId, sellerName: col.userName, isUserCollection: col.userId !== "system" })}>
+                <div className="relative aspect-[3/4] bg-[#111] overflow-hidden rounded-sm cursor-pointer touch-manipulation select-none" onPointerUp={() => onViewProduct({ ...p, collectionId: col.id, sellerId: col.userId, sellerName: col.userName, isUserCollection: col.userId !== "system" })}>
                   <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute bottom-3 left-3 right-3 bg-white text-black py-3 text-[9px] tracking-[.2em] text-center font-medium translate-y-16 group-hover:translate-y-0 transition-transform duration-400 rounded-sm">
+                  <div className="pointer-events-none absolute bottom-3 left-3 right-3 bg-white text-black py-3 text-[9px] tracking-[.2em] text-center font-medium translate-y-16 group-hover:translate-y-0 transition-transform duration-400 rounded-sm">
                     VIEW PRODUCT
                   </div>
                 </div>
