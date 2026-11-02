@@ -1334,7 +1334,7 @@ function CreateCollectionPage({ onNavigate }: any) {
 
 // ============ PROFILE PAGE ============
 function ProfilePage({ onViewCollection, onNavigate, onAuth }: any) {
-  const { currentUser, signOut, getUserCollections, orders } = useApp();
+  const { currentUser, signOut, getUserCollections, orders, deleteCollection } = useApp();
   const [tab, setTab] = useState<"collections" | "orders" | "wishlist">("collections");
 
   if (!currentUser) {
@@ -1400,14 +1400,30 @@ function ProfilePage({ onViewCollection, onNavigate, onAuth }: any) {
             ) : (
               <div className="grid md:grid-cols-2 gap-4">
                 {myCollections.map(col => (
-                  <motion.button key={col.id} whileHover={{ scale: 0.99 }} onClick={() => onViewCollection(col)} className="group relative aspect-[16/10] overflow-hidden rounded-lg text-left">
-                    <img src={col.coverImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <h3 className="text-lg font-medium">{col.name}</h3>
-                      <p className="text-[10px] text-white/50 mt-1">{col.products.length} products · {col.likes} likes</p>
-                    </div>
-                  </motion.button>
+                  <div key={col.id} className="relative group">
+                    <motion.button whileHover={{ scale: 0.99 }} onClick={() => onViewCollection(col)} className="group relative block w-full aspect-[16/10] overflow-hidden rounded-lg text-left">
+                      <img src={col.coverImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <h3 className="text-lg font-medium">{col.name}</h3>
+                        <p className="text-[10px] text-white/50 mt-1">{col.products.length} products · {col.likes} likes</p>
+                      </div>
+                    </motion.button>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${col.name}`}
+                      title="Delete collection"
+                      onClick={event => {
+                        event.stopPropagation();
+                        if (window.confirm(`Delete "${col.name}" and its products? This cannot be undone.`)) {
+                          void deleteCollection(col.id);
+                        }
+                      }}
+                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-red-600/90 text-white grid place-items-center shadow-lg hover:bg-red-500 transition"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
