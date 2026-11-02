@@ -1111,10 +1111,10 @@ function CreateCollectionPage({ onNavigate }: any) {
     notify("Product saved ✓");
   };
 
-  const publishCollection = () => {
+  const publishCollection = async () => {
     if (!colName || !colCover) { notify("Add collection name & cover", "error"); return; }
     if (products.length === 0) { notify("Add at least one product", "error"); return; }
-    addCollection({
+    const saved = await addCollection({
       userId: currentUser.id,
       userName: currentUser.name,
       userAvatar: currentUser.avatar,
@@ -1123,7 +1123,7 @@ function CreateCollectionPage({ onNavigate }: any) {
       coverImage: colCover,
       products,
     });
-    onNavigate("profile");
+    if (saved) onNavigate("profile");
   };
 
   return (
