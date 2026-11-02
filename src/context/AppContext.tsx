@@ -102,7 +102,7 @@ interface AppContextType {
 
   addCollection: (
     col: Omit<UserCollection, 'id' | 'createdAt' | 'likes' | 'likedBy'>
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 
   deleteCollection: (id: string) => Promise<void>;
 
@@ -628,10 +628,10 @@ export function AppProvider({
         UserCollection,
         'id' | 'createdAt' | 'likes' | 'likedBy'
       >
-    ) => {
+    ): Promise<boolean> => {
       if (!currentUser) {
         notify('Please login first.', 'error');
-        return;
+        return false;
       }
 
       const { data, error } = await supabase
@@ -646,16 +646,66 @@ export function AppProvider({
         .select()
         .single();
 
-      if (error) {
-        notify(error.message, 'error');
-        return;
+      if (error || !data) {
+        notify(error?.message || 'Could not create collection.', 'error');
+        return false;
       }
+
+      const productRows = col.products.map(product => ({
+        collection_id: data.id,
+        seller_id: currentUser.id,
+        name: product.name,
+        price: product.price,
+        mrp: product.mrp ?? null,
+        description: product.description || '',
+        category: product.category || 'Fashion',
+        sizes: product.sizes || [],
+        colors: product.colors || [],
+        images: product.images || [],
+        stock: product.stock ?? 0
+      }));
+
+      const { data: savedProducts, error: productsError } = await supabase
+        .from('products')
+        .insert(productRows)
+        .select();
+
+      if (productsError || !savedProducts) {
+        // Avoid leaving an empty collection if its products could not be saved.
+        await supabase
+          .from('collections')
+          .delete()
+          .eq('id', data.id);
+
+        notify(productsError?.message || 'Could not save collection products.', 'error');
+        return false;
+      }
+
+      const formattedProducts: UserProduct[] = savedProducts.map((product: any) => ({
+        id: product.id,
+        name: product.name || '',
+        price: Number(product.price || 0),
+        mrp: product.mrp !== null && product.mrp !== undefined
+          ? Number(product.mrp)
+          : undefined,
+        sizes: product.sizes || [],
+        colors: product.colors || [],
+        images: product.images || [],
+        description: product.description || '',
+        category: product.category || 'Fashion',
+        stock: product.stock !== null && product.stock !== undefined
+          ? Number(product.stock)
+          : undefined,
+        sellerId: product.seller_id,
+        collectionId: product.collection_id
+      }));
 
       const newCollection: UserCollection = {
         ...col,
+        products: formattedProducts,
         id: data.id,
-        createdAt: Date.now(),
-        likes: 0,
+        createdAt: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
+        likes: Number(data.likes || 0),
         likedBy: []
       };
 
@@ -664,7 +714,8 @@ export function AppProvider({
         ...prev
       ]);
 
-      notify('Collection created successfully.', 'success');
+      notify('Collection and products saved successfully.', 'success');
+      return true;
     },
     [currentUser, notify]
   );
